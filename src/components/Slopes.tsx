@@ -13,20 +13,14 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
   let canvas!: HTMLCanvasElement;
   let animationId: number;
   const bufferLength = analyserNode.frequencyBinCount;
-  const dataArray = new Float32Array(bufferLength);
+  const dataArray = new Uint8Array(bufferLength);
 
   const step = 8;
-  const randoms: Record<string, number> = {};
-  for (let i = step; i <= size - step; i += step) {
-    for (let j = step; j <= size - step; j += step) {
-      randoms[`${i}-${j}`] = Math.random();
-    }
-  }
 
-  // Dark purple: rgb(76, 44, 255)
+  // Dark purple: rgb(255, 44, 44)
   // Toxic pink: rgb(255, 26, 255)
   // White: rgb(255,255,255)
-  const colorStart: [number, number, number] = [76, 44, 255];
+  const colorStart: [number, number, number] = [255, 44, 44];
   const colorEnd: [number, number, number] = [255, 26, 255];
   const colorWhite: [number, number, number] = [255, 255, 255];
 
@@ -37,8 +31,8 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
     ctx.clearRect(0, 0, size, size);
     
     // Get frequency data
-    analyserNode.getFloatFrequencyData(dataArray);
-    
+    analyserNode.getByteFrequencyData(dataArray);
+
     ctx.lineWidth = 1.5;
 
     const cuttedLines = 8
@@ -56,7 +50,7 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
         // Map j to frequency array index
         const freqIndex = Math.floor(mapRange(lineIdx * totalSteps + xIdx, cuttedLines * totalSteps, totalSteps * totalSteps, 0, bufferLength - 1));
         // Normalize frequency value from dB scale (-100 to 0) to a reasonable amplitude
-        let amplitude = Math.max(0, Math.min(1, (dataArray[freqIndex] + 140) / 140))
+        let amplitude = Math.max(0, Math.min(1, dataArray[freqIndex] / 255))
         amplitude = lineIdx > cuttedLines ? Number.isNaN(amplitude) ? 0 : amplitude : 0
 
         const distanceToCenter = Math.abs(j - size / 2);
@@ -74,11 +68,9 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
       lineIdx++
     }
 
-    // Draw the lines
-    const totalLines = lines.length - cuttedLines;
     // For color interpolation by line index
     const minLine = cuttedLines + 1;
-    const maxLine = lines.length - 7; // lines.length - 6 is exclusive in the loop
+    const maxLine = lines.length - 7;
     const lineRange = maxLine - minLine;
 
     for (let i = minLine; i < lines.length - 6; i++) {
@@ -173,7 +165,7 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
         lines[i][j + 1].y
       );
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.globalAlpha = alpha; // Also apply opacity to fill
+      ctx.globalAlpha = 1; // Also apply opacity to fill
       ctx.fill();
       ctx.restore();
     }

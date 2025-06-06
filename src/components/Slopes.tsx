@@ -6,7 +6,7 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
   const bufferLength = analyserNode.frequencyBinCount;
   const dataArray = new Float32Array(bufferLength);
 
-  const step = 10;
+  const step = 8;
   const randoms: Record<string, number> = {};
   for (let i = step; i <= size - step; i += step) {
     for (let j = step; j <= size - step; j += step) {
@@ -23,35 +23,52 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
     // Get frequency data
     analyserNode.getFloatFrequencyData(dataArray);
     
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#ccc";
+    ctx.lineWidth = 1.5;
 
+    const cuttedLines = 8
     const lines: Array<Array<{ x: number; y: number }>> = [];
+
+    const doLog = Math.random() > 0.99
     
-    // Use frequency data to influence the lines
     let lineIdx = 0
-    const totalLines = size / step
+    const totalSteps = size / step
     for (let i = step; i <= size - step; i += step) {
       let line: Array<{ x: number; y: number }> = [];
+      let xIdx = 0
       for (let j = step; j <= size - step; j += step) {
         // Map j to frequency array index
-        const freqIndex = mapRange(lineIdx, 0, totalLines, 0, bufferLength - 1);
+        const freqIndex = Math.floor(mapRange(lineIdx * totalSteps + xIdx, cuttedLines * totalSteps, totalSteps * totalSteps, 0, bufferLength - 1));
         // Normalize frequency value from dB scale (-100 to 0) to a reasonable amplitude
         let amplitude = Math.max(0, Math.min(1, (dataArray[freqIndex] + 140) / 140))
-        amplitude = Number.isNaN(amplitude) ? 0 : amplitude;
+        amplitude = lineIdx > cuttedLines ? Number.isNaN(amplitude) ? 0 : amplitude : 0
+
+        // if (doLog) {
+        //   console.log(lineIdx * totalSteps + xIdx, '/', totalSteps * totalSteps, '->', freqIndex, '=', amplitude)
+        // }
 
         const distanceToCenter = Math.abs(j - size / 2);
-        const variance = Math.max(size / 2 - 50 - distanceToCenter, 0);
-        // const random = randoms[`${i}-${j}`] * variance / 2 * -1;
-        const random = randoms[`${i}-${j}`] * variance / 2 * -1
+        const variance = Math.max(size / 2 - 20 - distanceToCenter, 0);
+        // const random = randoms[`${i}-${j}`] * variance / 2 * -1
+        const displacement = amplitude * variance / 2 * -1
 
-        line.push({ x: j, y: i + random * amplitude });
+        line.push({ x: j, y: i + displacement });
+        xIdx++
       }
       lines.push(line);
+      lineIdx++
     }
 
     // Draw the lines
-    for (let i = 7; i < lines.length; i++) {
+    const totalLines = lines.length - cuttedLines;
+    for (let i = cuttedLines; i < lines.length - 6; i++) {
+      // Calculate color: interpolate from red (first) to white (last)
+      // Red: rgb(255,0,0), White: rgb(255,255,255)
+      const t = totalLines > 0 ? (i - cuttedLines) / (totalLines - 1) : 0;
+      const r = 255;
+      const g = Math.round(255 * t);
+      const b = Math.round(255 * t);
+      ctx.strokeStyle = `rgb(${r},${g},${b})`;
+
       ctx.beginPath();
       ctx.moveTo(lines[i][0].x, lines[i][0].y);
 

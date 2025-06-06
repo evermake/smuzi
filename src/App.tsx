@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show, type Accessor } from 'solid-js'
-import { AudioVisualizer } from './components/AudioVisualizer';
+import { Slopes } from './components/Slopes';
 
 function App() {
   const audioCtx = new AudioContext();
@@ -87,14 +87,16 @@ function App() {
                     >
                       Stop
                     </button>
-
-                    <AudioVisualizer analyserNode={analyserNode} />
                   </div>
                 )}
               </Show>
             </div>
           )}
         </Show>
+
+        <div class='slopes'>
+          <Slopes size={400} analyserNode={analyserNode} />
+        </div>
       </div>
     </>
   )

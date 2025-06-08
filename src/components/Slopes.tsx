@@ -1,7 +1,10 @@
-import { onMount, onCleanup } from "solid-js";
+import { onMount, onCleanup, type Accessor } from "solid-js";
+import bezier from "bezier-easing";
+
+export type RGB = [number, number, number];
 
 // Helper to interpolate between two colors
-function lerpColor(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
+function lerpColor(a: RGB, b: RGB, t: number): RGB {
   return [
     Math.round(a[0] + (b[0] - a[0]) * t),
     Math.round(a[1] + (b[1] - a[1]) * t),
@@ -9,46 +12,56 @@ function lerpColor(a: [number, number, number], b: [number, number, number], t: 
   ];
 }
 
-export function Slopes({ size, analyserNode }: { size: number; analyserNode: AnalyserNode }) {
+const COLOR_WHITE: RGB = [255, 255, 255];
+
+export function Slopes({
+  size,
+  analyserNode,
+  colorStart = () => COLOR_WHITE,
+  colorEnd = () => COLOR_WHITE,
+}: {
+  size: number;
+  analyserNode: AnalyserNode;
+  colorStart?: Accessor<RGB>;
+  colorEnd?: Accessor<RGB>;
+}) {
   let canvas!: HTMLCanvasElement;
+  let ctx!: CanvasRenderingContext2D;
   let animationId: number;
   const bufferLength = analyserNode.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
+  const maxFreqIndex = Math.floor(bufferLength * 0.9) - 1 // cut high frequencies
+  const alphaBezier = bezier(0.5, 0, 0.5, 1)
 
-  const step = 8;
-
-  // Dark purple: rgb(255, 44, 44)
-  // Toxic pink: rgb(255, 26, 255)
-  // White: rgb(255,255,255)
-  const colorStart: [number, number, number] = [255, 44, 44];
-  const colorEnd: [number, number, number] = [255, 26, 255];
-  const colorWhite: [number, number, number] = [255, 255, 255];
+  const step = 10;
+  const totalSteps = size / step
+  const totalSteps2 = totalSteps * totalSteps
 
   const draw = () => {
-    const ctx = canvas.getContext('2d')!;
-    
-    // Clear the canvas
     ctx.clearRect(0, 0, size, size);
-    
-    // Get frequency data
     analyserNode.getByteFrequencyData(dataArray);
-
     ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 1;
 
-    const cuttedLines = 8
+    const cuttedLines = 0
     const lines: Array<Array<{ x: number; y: number }>> = [];
     const lineAmplitudes: number[] = [];
 
     let lineIdx = 0
-    const totalSteps = size / step
     for (let i = step; i <= size - step; i += step) {
       let line: Array<{ x: number; y: number }> = [];
       let xIdx = 0
       let sum = 0;
       let count = 0;
-      for (let j = step; j <= size - step; j += step) {
-        // Map j to frequency array index
-        const freqIndex = Math.floor(mapRange(lineIdx * totalSteps + xIdx, cuttedLines * totalSteps, totalSteps * totalSteps, 0, bufferLength - 1));
+      for (let j = 0; j <= size; j += step) {
+        // Map j to frequency array index - reversed mapping
+        const freqIndex = Math.floor(mapRange(
+          (totalSteps - lineIdx) * totalSteps + xIdx, 
+          0, 
+          totalSteps2, 
+          0, 
+          maxFreqIndex
+        ));
         // Normalize frequency value from dB scale (-100 to 0) to a reasonable amplitude
         let amplitude = Math.max(0, Math.min(1, dataArray[freqIndex] / 255))
         amplitude = lineIdx > cuttedLines ? Number.isNaN(amplitude) ? 0 : amplitude : 0
@@ -63,41 +76,30 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
         xIdx++
       }
       lines.push(line);
-      // Compute and store average amplitude for this line
       lineAmplitudes.push(count > 0 ? sum / count : 0);
       lineIdx++
     }
 
-    // For color interpolation by line index
-    const minLine = cuttedLines + 1;
-    const maxLine = lines.length - 7;
-    const lineRange = maxLine - minLine;
+    const lineColors = []
+    const colorStart_ = colorStart()
+    const colorEnd_ = colorEnd()
+    for (let i = 0; i < lines.length; i++) {
+      const lineT = i / lines.length;
+      lineColors.push(lerpColor(colorEnd_, colorStart_, lineT)); // swap to reverse
+    }
 
-    for (let i = minLine; i < lines.length - 6; i++) {
-      // How far down the canvas is this line? 0 = top, 1 = bottom
-      const lineT = lineRange > 0 ? (i - minLine) / lineRange : 0;
-      // Interpolate from dark purple (top) to toxic pink (bottom)
-      const baseColor = lerpColor(colorStart, colorEnd, lineT);
+    for (let i = 0; i < lines.length; i++) {
+      const baseColor = lineColors[i];
 
       // Amplitude for this line
       const amp = Math.max(0, Math.min(1, lineAmplitudes[i]));
 
-      // If amplitude is low, color is white and transparent (as before)
+      // If amplitude is low, color is white and transparent
       // If amplitude is high, color is between baseColor and white, depending on amp
       // So: color = lerp(white, baseColor, amp)
-      const [r, g, b] = lerpColor(colorWhite, baseColor, amp);
+      const [r, g, b] = lerpColor(COLOR_WHITE, baseColor, amp);
 
-      // Opacity: non-linear amplification dependency with Bezier easing (slow start, then faster)
-      // Use cubic Bezier (0.42, 0, 1, 1) for easeIn
-      function cubicBezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
-        const u = 1 - t;
-        return u * u * u * p0 +
-               3 * u * u * t * p1 +
-               3 * u * t * t * p2 +
-               t * t * t * p3;
-      }
-      // EaseIn cubic-bezier(0.42, 0, 1, 1)
-      const alpha = cubicBezier(amp, 0, 0, 1, 1);
+      const alpha = alphaBezier(amp)
 
       // --- GLOW EFFECT ---
       // Draw a glow behind the line using shadowBlur and shadowColor
@@ -123,7 +125,6 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
 
       ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.5})`; // Slightly less alpha for glow
       ctx.lineWidth = 4.5; // Thicker for glow
-      ctx.globalAlpha = 1;
       ctx.stroke();
       ctx.restore();
 
@@ -145,7 +146,6 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
 
       ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
       ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 1;
       ctx.stroke();
       ctx.restore();
 
@@ -165,7 +165,6 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
         lines[i][j + 1].y
       );
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.globalAlpha = 1; // Also apply opacity to fill
       ctx.fill();
       ctx.restore();
     }
@@ -180,7 +179,7 @@ export function Slopes({ size, analyserNode }: { size: number; analyserNode: Ana
     canvas.style.width = size + 'px';
     canvas.style.height = size + 'px';
 
-    const ctx = canvas.getContext('2d')!;
+    ctx = canvas.getContext('2d')!;
     ctx.scale(dpr, dpr);
     
     draw();

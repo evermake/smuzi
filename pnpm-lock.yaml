@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      bezier-easing:
+        specifier: ^2.1.0
+        version: 2.1.0
       solid-js:
         specifier: ^1.9.5
         version: 1.9.7
@@ -397,6 +400,9 @@ packages:
     resolution: {integrity: sha512-HXTK9f93QxoH8dYn1M2mJdOlWgMsR88Lg/ul6QCZGkNTktjTE5HAf93YxQumHoCudLEtZrU1cFCMFOVho6GqFg==}
     peerDependencies:
       '@babel/core': ^7.0.0
+
+  bezier-easing@2.1.0:
+    resolution: {integrity: sha512-gbIqZ/eslnUFC1tjEvtz0sgx+xTK20wDnYMIA27VA04R7w6xxXQPZDbibjA9DTWZRA2CXtwHykkVzlCaAJAZig==}
 
   browserslist@4.25.0:
     resolution: {integrity: sha512-PJ8gYKeS5e/whHBh8xrwYK+dAvEj7JXtz6uTucnMRB8OiGTsKccFekoRrjajPBHV8oOY+2tI4uxeceSimKwMFA==}
@@ -925,6 +931,8 @@ snapshots:
     dependencies:
       '@babel/core': 7.27.4
       babel-plugin-jsx-dom-expressions: 0.39.8(@babel/core@7.27.4)
+
+  bezier-easing@2.1.0: {}
 
   browserslist@4.25.0:
     dependencies:

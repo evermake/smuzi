@@ -138,7 +138,7 @@ export function Player() {
           }
           const input = document.createElement('input');
           input.type = 'file';
-          input.accept = 'audio/*';
+          input.accept = '.wav,.aif,.aiff,.flac,.alac,.aac,.ogg,.mp3';
           input.onchange = (e) => {
             const files = (e.target as HTMLInputElement).files;
             if (files && files.length > 0) {

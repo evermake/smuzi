@@ -32,8 +32,10 @@ const GRADIENTS: Gradient[] = [
 export function Player() {
   const audioCtx = new AudioContext();
   const analyserNode = audioCtx.createAnalyser();
-  analyserNode.fftSize = 2 ** 14;
-  analyserNode.smoothingTimeConstant = 0.01;
+  analyserNode.fftSize = 2 ** 12;
+  analyserNode.smoothingTimeConstant = 0.75;
+  analyserNode.minDecibels = -100;
+  analyserNode.maxDecibels = -25;
 
   const [selectedFile, setSelectedFile] = createSignal<File | null>(null);
   const [audioBuffer, setAudioBuffer] = createSignal<AudioBuffer | null>(null);

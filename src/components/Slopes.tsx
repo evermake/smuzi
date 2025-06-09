@@ -40,7 +40,6 @@ export function Slopes({
   const draw = () => {
     ctx.clearRect(0, 0, size, size);
     analyserNode.getByteFrequencyData(dataArray);
-    ctx.lineWidth = 1.5;
     ctx.globalAlpha = 1;
 
     const cuttedLines = 0
@@ -68,9 +67,9 @@ export function Slopes({
 
         const distanceToCenter = Math.abs(j - size / 2);
         const variance = Math.max(size / 2 - 10 - distanceToCenter, 0);
-        const displacement = amplitude * variance / 2 * -1
+        const displacement = amplitude * variance / 2
 
-        line.push({ x: j, y: i + displacement });
+        line.push({ x: j, y: i - displacement });
         sum += amplitude;
         count++;
         xIdx++
@@ -89,68 +88,13 @@ export function Slopes({
     }
 
     for (let i = 0; i < lines.length; i++) {
-      const baseColor = lineColors[i];
-
-      // Amplitude for this line
       const amp = Math.max(0, Math.min(1, lineAmplitudes[i]));
-
-      // If amplitude is low, color is white and transparent
-      // If amplitude is high, color is between baseColor and white, depending on amp
-      // So: color = lerp(white, baseColor, amp)
-      const [r, g, b] = lerpColor(COLOR_WHITE, baseColor, amp);
-
+      const [r, g, b] = lerpColor(COLOR_WHITE, lineColors[i], amp);
       const alpha = alphaBezier(amp)
-
-      // --- GLOW EFFECT ---
-      // Draw a glow behind the line using shadowBlur and shadowColor
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(lines[i][0].x, lines[i][0].y);
-      let j: number;
-      for (j = 0; j < lines[i].length - 2; j++) {
-        let xc = (lines[i][j].x + lines[i][j + 1].x) / 2;
-        let yc = (lines[i][j].y + lines[i][j + 1].y) / 2;
-        ctx.quadraticCurveTo(lines[i][j].x, lines[i][j].y, xc, yc);
-      }
-      ctx.quadraticCurveTo(
-        lines[i][j].x,
-        lines[i][j].y,
-        lines[i][j + 1].x,
-        lines[i][j + 1].y
-      );
-
-      // Set shadow for glow
-      ctx.shadowColor = `rgba(${r},${g},${b},${Math.max(alpha, 0.3)})`;
-      ctx.shadowBlur = 16 + 32 * alpha; // More blur for higher amplitude
-
-      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.5})`; // Slightly less alpha for glow
-      ctx.lineWidth = 4.5; // Thicker for glow
-      ctx.stroke();
-      ctx.restore();
-
-      // --- MAIN LINE ---
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(lines[i][0].x, lines[i][0].y);
-      for (j = 0; j < lines[i].length - 2; j++) {
-        let xc = (lines[i][j].x + lines[i][j + 1].x) / 2;
-        let yc = (lines[i][j].y + lines[i][j + 1].y) / 2;
-        ctx.quadraticCurveTo(lines[i][j].x, lines[i][j].y, xc, yc);
-      }
-      ctx.quadraticCurveTo(
-        lines[i][j].x,
-        lines[i][j].y,
-        lines[i][j + 1].x,
-        lines[i][j + 1].y
-      );
-
-      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
       ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
 
-      // --- FILL (destination-out) ---
-      ctx.save();
+      let j: number;
       ctx.beginPath();
       ctx.moveTo(lines[i][0].x, lines[i][0].y);
       for (j = 0; j < lines[i].length - 2; j++) {
@@ -164,9 +108,11 @@ export function Slopes({
         lines[i][j + 1].x,
         lines[i][j + 1].y
       );
+      ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fill();
       ctx.restore();
+      ctx.stroke();
     }
 
     animationId = requestAnimationFrame(draw);
